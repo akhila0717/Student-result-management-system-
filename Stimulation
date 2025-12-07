@@ -1,0 +1,237 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_BOOKS 100
+#define FILE_NAME "books.txt"
+
+// Define the Book structure
+typedef struct {
+    int id;
+    char title[100];
+    char author[50];
+    float price;
+} Book;
+
+Book inventory[MAX_BOOKS];
+int bookCount = 0;
+
+// Function Prototypes
+void loadInventory();
+void saveInventory();
+void addBook();
+void displayBooks();
+void searchBook();
+void deleteBook();
+void clearInputBuffer(); // Helper to clean up input stream
+
+// Main function for the menu loop
+int main() {
+    int choice;
+    loadInventory(); // Load data when the program starts
+
+    while (1) {
+        printf("\n=== Book Inventory Management System ===\n");
+        printf("1. Add Book\n");
+        printf("2. Display All Books\n");
+        printf("3. Search Book by ID\n");
+        printf("4. Delete Book by ID\n");
+        printf("5. Exit\n");
+        printf("Enter your choice: ");
+        
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input! Please enter a number.\n");
+            clearInputBuffer();
+            continue;
+        }
+        clearInputBuffer();
+
+        switch (choice) {
+            case 1: addBook(); break;
+            case 2: displayBooks(); break;
+            case 3: searchBook(); break;
+            case 4: deleteBook(); break;
+            case 5:
+                saveInventory();
+                printf("Exiting... Inventory saved.\n");
+                return 0;
+            default:
+                printf("Invalid choice! Please try again.\n");
+        }
+    }
+    return 0;
+}
+
+// Clears the input buffer to prevent issues with mixed scanf and fgets
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+// Loads book data from a file (books.txt)
+void loadInventory() {
+    FILE *file = fopen(FILE_NAME, "r");
+    if (file == NULL) {
+        return; // File doesn't exist yet, which is fine on first run
+    }
+
+    bookCount = 0;
+    // Format: ID,Title,Author,Price
+    while (fscanf(file, "%d,%99[^,],%49[^,],%f\n", 
+                  &inventory[bookCount].id, 
+                  inventory[bookCount].title, 
+                  inventory[bookCount].author, 
+                  &inventory[bookCount].price) == 4) {
+        bookCount++;
+        if (bookCount >= MAX_BOOKS) break;
+    }
+    fclose(file);
+    printf("Loaded %d books from file.\n", bookCount);
+}
+
+// Saves current inventory to a file (books.txt)
+void saveInventory() {
+    FILE *file = fopen(FILE_NAME, "w");
+    if (file == NULL) {
+        printf("Error saving to file!\n");
+        return;
+    }
+
+    for (int i = 0; i < bookCount; i++) {
+        // Saving in CSV-like format
+        fprintf(file, "%d,%s,%s,%.2f\n", 
+                inventory[i].id, 
+                inventory[i].title, 
+                inventory[i].author, 
+                inventory[i].price);
+    }
+    fclose(file);
+}
+
+// Adds a new book record
+void addBook() {
+    if (bookCount >= MAX_BOOKS) {
+        printf("Inventory is full! Cannot add more books.\n");
+        return;
+    }
+
+    Book newBook;
+    printf("Enter Book ID: ");
+    if (scanf("%d", &newBook.id) != 1) {
+        printf("Invalid ID!\n");
+        clearInputBuffer();
+        return;
+    }
+    clearInputBuffer();
+
+    // Check for duplicate ID
+    for (int i = 0; i < bookCount; i++) {
+        if (inventory[i].id == newBook.id) {
+            printf("Error: Book with ID %d already exists.\n", newBook.id);
+            return;
+        }
+    }
+
+    printf("Enter Title: ");
+    // Using fgets for strings to handle spaces
+    if (fgets(newBook.title, sizeof(newBook.title), stdin) != NULL) {
+        size_t len = strlen(newBook.title);
+        if (len > 0 && newBook.title[len-1] == '\n') {
+            newBook.title[len-1] = '\0'; // Remove the trailing newline
+        }
+    }
+
+    printf("Enter Author: ");
+    if (fgets(newBook.author, sizeof(newBook.author), stdin) != NULL) {
+        size_t len = strlen(newBook.author);
+        if (len > 0 && newBook.author[len-1] == '\n') {
+            newBook.author[len-1] = '\0'; // Remove the trailing newline
+        }
+    }
+
+    printf("Enter Price: ");
+    if (scanf("%f", &newBook.price) != 1) {
+        printf("Invalid Price!\n");
+        clearInputBuffer();
+        return;
+    }
+    clearInputBuffer();
+
+    inventory[bookCount++] = newBook;
+    printf("Book added successfully!\n");
+    saveInventory();
+}
+
+// Displays all books in the inventory
+void displayBooks() {
+    if (bookCount == 0) {
+        printf("No books found in the inventory.\n");
+        return;
+    }
+
+    printf("\n%-10s %-40s %-25s %-10s\n", "ID", "Title", "Author", "Price");
+    printf("--------------------------------------------------------------------------------\n");
+    for (int i = 0; i < bookCount; i++) {
+        printf("%-10d %-40s %-25s %-10.2f\n", 
+               inventory[i].id, 
+               inventory[i].title, 
+               inventory[i].author, 
+               inventory[i].price);
+    }
+}
+
+// Searches for a book by its ID
+void searchBook() {
+    int id;
+    printf("Enter ID to search: ");
+    if (scanf("%d", &id) != 1) {
+        printf("Invalid input!\n");
+        clearInputBuffer();
+        return;
+    }
+    clearInputBuffer();
+
+    for (int i = 0; i < bookCount; i++) {
+        if (inventory[i].id == id) {
+            printf("\nBook Found:\n");
+            printf("ID: %d\n", inventory[i].id);
+            printf("Title: %s\n", inventory[i].title);
+            printf("Author: %s\n", inventory[i].author);
+            printf("Price: %.2f\n", inventory[i].price);
+            return;
+        }
+    }
+    printf("Book with ID %d not found.\n", id);
+}
+
+// Deletes a book record by its ID
+void deleteBook() {
+    int id;
+    printf("Enter ID to delete: ");
+    if (scanf("%d", &id) != 1) {
+        printf("Invalid input!\n");
+        clearInputBuffer();
+        return;
+    }
+    clearInputBuffer();
+
+    int foundIndex = -1;
+    for (int i = 0; i < bookCount; i++) {
+        if (inventory[i].id == id) {
+            foundIndex = i;
+            break;
+        }
+    }
+
+    if (foundIndex != -1) {
+        // Shift remaining elements to fill the gap
+        for (int i = foundIndex; i < bookCount - 1; i++) {
+            inventory[i] = inventory[i + 1];
+        }
+        bookCount--;
+        printf("Book deleted successfully.\n");
+        saveInventory();
+    } else {
+        printf("Book with ID %d not found.\n", id);
+    }
+}
